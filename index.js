@@ -12,7 +12,9 @@ app.use(cors());
 //
 app.use("/user",userrouter)
 
-
+app.use("/",(req,res)=>{
+    res.send({msg:"working"})
+})
 app.listen(process.env.port,async()=>{
     try{
         await connection
