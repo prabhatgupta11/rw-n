@@ -1,87 +1,71 @@
-const express=require("express")
-const {UserModel}=require("../model/usermodel")
+const express = require("express");
+const { UserModel } = require("../model/usermodel");
 const bcrypt = require('bcrypt');
 var jwt = require('jsonwebtoken');
-const userrouter=express.Router();
+const userrouter = express.Router();
 
-//register the user
+// Register the user
+userrouter.post("/register", async (req, res) => {
+    const { name, email, gender, password, city, age, is_married } = req.body;
 
-userrouter.post("/register",async(req,res)=>{
-    const { name, email, gender, password,city,age ,is_married } = req.body;
+    try {
+        const user = await UserModel.findOne({ email: email });
+        if (user) {
+            return res.status(200).send({ msg: "User already exists, please login" });
+        } else {
+            const hashPassword = await bcrypt.hashSync(password, 6);
+            const newUser = new UserModel({
+                name,
+                email,
+                gender,
+                password: hashPassword,
+                city,
+                age,
+                is_married
+            });
+            await newUser.save();
 
-
-
-    try{
-        const payload=req.body
-        
-
-        const user= await UserModel.findOne({email:payload.email});
-        if(user)
-        {
-           return  res.status(200).send({msg:"User already exist, please login"});
+            return res.json({ msg: "User registered", user: newUser });
         }
-        else{
-            const hashPassword=await bcrypt.hashSync(payload.password,6);
-            payload.password=hashPassword;
-
-            const newuser=new UserModel(payload);
-            await newuser.save();
-
-            return res.json({msg:"user registerd",user:newuser})
-        }
+    } catch (err) {
+        res.status(400).send({ msg: err.message });
     }
-    catch(err)
-    {
-        res.status(400).send({msg:err.message});
-    }
-  
-})
+});
 
+// Login the user
+userrouter.post("/login", async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const user = await UserModel.findOne({ email: email });
 
-//login the user
-userrouter.post("/login",async(req,res)=>{
-    
-    try{
-        const payload=req.body;
-        const user= await UserModel.findOne({email:payload.email});
-
-        if(!user)
-        {
-            return    res.status(400).send({"msg":"please register first"});
+        if (!user) {
+            return res.status(400).send({ msg: "Please register first" });
         }
 
+        const isPassCorrect = await bcrypt.compareSync(password, user.password);
 
-        const ispasscorrect=await bcrypt.compareSync(
-            payload.password,
-            user.password
-        );
-
-        if(ispasscorrect)
-        {
-             const token= await jwt.sign({email:user.email,userId:user._id},'masai')
-             res.status(200).send({"msg":"Login success","token":token,"newuser":user});
+        if (isPassCorrect) {
+            const token = await jwt.sign({ email: user.email, userId: user._id }, 'masai');
+            res.status(200).send({ msg: "Login success", token: token, newUser: user });
+        } else {
+            res.status(400).send({ msg: "Wrong password" });
         }
-        else{
-            res.status(400).send({"msg":"Wrong password"})
-        }
-    }catch(err){
-        res.status(400).send({"msg":"Something wrong in login section",err})
+    } catch (err) {
+        res.status(400).send({ msg: "Something went wrong in the login section", err });
     }
-   
-})
+});
 
-userrouter.get("/alluser",async(req,res)=>{
-    try{
-        const user=await UserModel.find()
-        res.status(200).json({msg:"here are the all user",user})
-    }catch(err)
-    {
-        console.log(err)
-        res.status(400).json(err.message)
+// Get all users
+userrouter.get("/allusers", async (req, res) => {
+    try {
+        const users = await UserModel.find();
+        res.status(200).json({ msg: "Here are all the users", users });
+    } catch (err) {
+        console.log(err);
+        res.status(400).json(err.message);
     }
-})
+});
 
-
-module.exports={
+module.exports = {
     userrouter
-}
+};
